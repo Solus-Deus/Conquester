@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{%block content%}
+<h2>Welcome, {{ login }}!</h2>
+<form method="post" action="#">
+	<h1>Probably the master page</h1>
+	<p>E-mail adress: <input type="email" placeholder="Enter E-mail" name="email" value={{email if email}}></p>
+	<p><input type="submit" value="Save" name="save"></p>
+	<p><input type="submit" value="logout" name="logout"></p>
+</form>
+{% endblock %}

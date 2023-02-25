@@ -1,0 +1,26 @@
+
+body {
+	background-image: url("../img/yellow_back.png");
+	text-align: center;
+}
+.shrek {
+	margin-left: 30%;
+}
+.nav {
+	display: block;
+	border: 5px solid rgb(215,153,11);
+	background-color: rgb(244,184,36);    
+	text-align: left;
+}
+h1 {
+	color: navy;
+	font-size: 40px;
+	text-align: center;
+}
+h2 {
+	color: navy;
+	font-size: 20px;
+	text-align: center;
+}
+form {
+}
