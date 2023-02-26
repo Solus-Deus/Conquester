@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{%block content%}
+<br>
+	<div class="log" id="gamelog">
+		{% for i in logs %}
+		<hr>
+		<p>{{i}}</p>
+		{% endfor %}
+	</div>
+<form method="post" action="#">
+</form>
+{% endblock %}

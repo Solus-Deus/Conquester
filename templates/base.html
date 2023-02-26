@@ -9,6 +9,14 @@
 	<body>
 		<div class=nav>
 			<a href="../">Home</a>
+			<span style="float: right">
+			{% if "login" in session %}
+				<a href="../user" >{{session["login"]}}</a>
+			{% else %}
+				<a href="../login" >Sign in</a>
+				<a href="../createaccount">Sign up</a>
+			{% endif %}
+			</span>
 		</div>
 		{% with msgs = get_flashed_messages() %}
 			{% if msgs %}
@@ -19,7 +27,6 @@
 		{%endwith%}
 		{%block content%}
 		{% endblock %}
-		
-		</form>
+
 	</body>
 </html>

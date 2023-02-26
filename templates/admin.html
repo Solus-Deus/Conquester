@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {%block content%}
 <h2>Welcome, админус!</h2>
-<form method="post" action="#">
-	<h1>Probably the ABMID page</h1>
-	{%for i in range(0, lenn)%}
-		<li>
-		{{listt[i]["_id"]}}   Name:"{{listt[i]["name"]}}"   Password:"{{listt[i]["password"]}}"   Email:"{{listt[i]["email"]}}"
-		</li>
-	{%endfor%}
-</form>
+<h1>Probably the ABMID page</h1>
+<div class="log">
+	<table>
+		<tr><th>#</th><th>Name</th><th>Password</th><th>Email</th></tr>
+		{%for i in range(0, lenn)%}
+			<tr><td>{{listt[i]["_id"]}}</td><td>{{listt[i]["name"]}}</td><td>{{listt[i]["password"]}}</td><td>{{listt[i]["email"]}}</td></tr>
+		{%endfor%}
+	</table>
+</div>
 {% endblock %}
