@@ -1,3 +1,4 @@
+from math import floor
 from flask import Flask, redirect, url_for, render_template, request, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
@@ -17,21 +18,57 @@ class Users(db.Model):
     name = db.Column(db.String(20))
     password = db.Column(db.String(100))
     email = db.Column(db.String(100))
+    move = db.Column(db.String(100))
+    inventory = db.Column(db.String(1000))
+    logs = db.Column(db.String(10000))
 
     def __init__(self, name, password, email):
         self.name = name
         self.email = email
         self.password = password
+        self.move = ""
+        self.inventory = '{}'
+        self.logs = '[]'
+
 
 def perform_task():
     print("new minute")
+    with app.app_context():
+        movers = Users.query.filter_by().all()
+        for mover in movers:
+            move = mover.move
+            if move != "":
+                inventory = eval(mover.inventory)
+
+                if move == "ping":
+                    newlog = "Pong"
+                elif move == "apple":
+                    if "Apple" not in inventory:
+                        inventory["Apple"] = 0
+                    inventory["Apple"] = inventory["Apple"] + 1
+                    newlog = "You took an apple. You now have " + str(inventory["Apple"])+" Apples."
+                else:
+                    newlog = "error: Unknown move. Your move is " + move
+
+                inventory=str(inventory)
+                mover.inventory = inventory
+                newlog = "["+time.ctime()+"] " + newlog
+                loggs = eval(mover.logs)
+                loggs.append(newlog)
+                mover.move = ""
+                if len(loggs) > 50:
+                    loggs = loggs[:50]
+                mover.logs = str(loggs)
+                db.session.commit()
+
 
 def schedule_task():
-    while abs(time.time())%60!=0:
+    while floor(time.time()) % 60 != 0:
         pass
     while True:
         perform_task()
         time.sleep(60)
+
 
 @app.route("/", methods=['GET', 'POST'])
 def homepage():
@@ -81,10 +118,10 @@ def newacc():
                 return render_template('newacc.html')
             else:
                 print("test2")
-                # login = request.form["login"]
+                login = request.form["login"]
                 password = request.form["password"]
 
-                found_user = Users.query.filter_by(name=request.form["login"]).first()
+                found_user = Users.query.filter_by(name=login).first()
 
                 if found_user:
                     flash("This user already exists! Login or use another username!", "info")
@@ -139,7 +176,22 @@ def user():
 @app.route('/game', methods=['GET', 'POST'])
 def gamepage():
     if "login" in session:
-        return render_template('gamebase.html', logs=["test1", "test2", "test3"])
+
+        if request.method == 'POST':
+            if request.form.get("ping") == "Ping!":
+                move="ping"
+            elif request.form.get("apple") == "Take an apple":
+                move="apple"
+            found_user = Users.query.filter_by(name=session["login"]).first()
+            found_user.move = move
+            db.session.commit()
+            flash("Move successful! You choose: "+move, "info")
+            return redirect(url_for("gamepage"))
+        else:
+            userr = session["login"]
+            found_user = Users.query.filter_by(name=userr).first()
+            print(found_user.logs)
+            return render_template('gamebase.html', logs=eval(found_user.logs), toime=62 - (floor(time.time() % 60)))
     else:
         return redirect(url_for("login"))
 
@@ -151,9 +203,10 @@ def logout():
     return redirect(url_for("homepage"))
 
 
+thread = threading.Thread(target=schedule_task)
+thread.start()
+
 if __name__ == "__main__":
-    thread = threading.Thread(target=schedule_task)
-    thread.start()
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

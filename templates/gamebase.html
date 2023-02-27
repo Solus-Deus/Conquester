@@ -1,12 +1,34 @@
 {% extends "base.html" %}
 {%block content%}
+	<div>
+		<canvas id=myCanvas width=120 height=22 class=log> </canvas>
+		<script>
+			var c = document.getElementById("myCanvas");
+			var ctx = c.getContext("2d");
+			var ttime = {{toime}};
+			ctx.font = "20px Arial";
+			function MyTimer () {
+				ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+				ctx.fillText("Time left: "+ttime, 0, 20);
+				ttime = ttime-1
+				if (ttime <= 0) {
+					location.reload();
+				}
+			}
+
+			setInterval(MyTimer, 1000);
+		</script>
+	</div>
 <br>
 	<div class="log" id="gamelog">
+
 		{% for i in logs %}
 		<hr>
 		<p>{{i}}</p>
 		{% endfor %}
 	</div>
 <form method="post" action="#">
+	<p><input type="submit" value="Take an apple" name="apple">
+	<input type="submit" value="Ping!" name="ping"></p>
 </form>
 {% endblock %}
