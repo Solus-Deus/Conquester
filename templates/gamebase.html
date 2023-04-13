@@ -19,16 +19,28 @@
 			setInterval(MyTimer, 1000);
 		</script>
 	</div>
-<br>
-	<div class="log" id="gamelog">
+	<div class="gamelog", id="down">
 
 		{% for i in logs %}
 		<hr>
 		<p>{{i}}</p>
 		{% endfor %}
 	</div>
-<form method="post" action="#">
-	<p><input type="submit" value="Take an apple" name="apple">
-	<input type="submit" value="Ping!" name="ping"></p>
-</form>
+	<div class="gamelog halfheight">
+
+		{% for i in inv %}
+		<hr>
+		<p>{{i.item}}: {{i.amount}}</p>
+		{% endfor %}
+	</div>
+	<div class="gamelog halfheight">
+		<form method="post" action="#">
+			<p><input type="submit" value="Take an apple" name="apple">
+			<input type="submit" value="Ping!" name="ping"></p>
+		</form>
+	</div>
+	<script>
+		var objDiv = document.getElementById("down");
+		objDiv.scrollTop = objDiv.scrollHeight;
+	</script>
 {% endblock %}

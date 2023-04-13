@@ -1,73 +1,113 @@
 from math import floor
+
 from flask import Flask, redirect, url_for, render_template, request, session, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import func
 from datetime import timedelta
 import threading
 import time
+import os
+
+minute_length = 10
 
 app = Flask(__name__)
 app.secret_key = "genius"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.sqlite3'
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite3'
+print(app.config['SQLALCHEMY_DATABASE_URI'])
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.permanent_session_lifetime = timedelta(hours=1)
+
 
 db = SQLAlchemy(app)
 
 
 class Users(db.Model):
-    _id = db.Column("id", db.Integer, primary_key=True)
-    name = db.Column(db.String(20))
-    password = db.Column(db.String(100))
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20), nullable=False)
+    password = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     move = db.Column(db.String(100))
-    inventory = db.Column(db.String(1000))
+    inventory = db.relationship("Inventory", backref="users")
     logs = db.Column(db.String(10000))
 
-    def __init__(self, name, password, email):
+    def __init__(self, name, password):
         self.name = name
-        self.email = email
         self.password = password
+        self.email = ""
         self.move = ""
-        self.inventory = '{}'
         self.logs = '[]'
+
+    def __repr__(self):
+        return f'<User {self.name}>'
+
+
+class Inventory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    item = db.Column(db.String(120), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    person_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    def __repr__(self):
+        return f'<Item {self.item}>'
+
+#class Spalls(db.Model):
+#    _id = db.Column("id", db.Integer, primary_key=True)
+#    name = db.Column(db.String(20))
+#    ingredients = db.Column(db.String(100))
+#
+#    def __init__(self, name, password, email):
+#        self.name = name
+#        self.email = email
+#        self.password = password
+#        self.move = ""
+#        self.inventory = '{}'
+#        self.logs = '[]'
 
 
 def perform_task():
-    print("new minute")
+    print(time.ctime())
     with app.app_context():
         movers = Users.query.filter_by().all()
         for mover in movers:
             move = mover.move
             if move != "":
-                inventory = eval(mover.inventory)
-
+                inventory = mover.inventory
                 if move == "ping":
                     newlog = "Pong"
                 elif move == "apple":
-                    if "Apple" not in inventory:
-                        inventory["Apple"] = 0
-                    inventory["Apple"] = inventory["Apple"] + 1
-                    newlog = "You took an apple. You now have " + str(inventory["Apple"])+" Apples."
+                    found_inv = None
+                    for i in inventory:
+                        if i.item == "Apple":
+                            found_inv = i
+                            break
+                    if found_inv==None:
+                        found_inv=Inventory(item="Apple",amount=0,users=mover)
+                        db.session.add(found_inv)
+                        db.session.commit()
+                    found_inv.amount += 1
+
+                    newlog = "You took an apple. You now have " + str(found_inv.amount) + " Apples."
                 else:
                     newlog = "error: Unknown move. Your move is " + move
+                newlog = "[" + time.ctime() + "] " + newlog
 
-                inventory=str(inventory)
-                mover.inventory = inventory
-                newlog = "["+time.ctime()+"] " + newlog
                 loggs = eval(mover.logs)
                 loggs.append(newlog)
-                mover.move = ""
                 if len(loggs) > 50:
                     loggs = loggs[:50]
                 mover.logs = str(loggs)
+                mover.move = ""
                 db.session.commit()
 
 
 def schedule_task():
-    while floor(time.time()) % 60 != 0:
+    while floor(time.time()) % minute_length != 0:
         pass
     while True:
         perform_task()
-        time.sleep(60)
+        time.sleep(minute_length)
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -112,22 +152,28 @@ def login():
 def newacc():
     if request.method == 'POST':
         if request.form.get("create account") == "Submit":
-            if request.form["password"] != request.form["password_again"]:
-                print("test1")
+            login = request.form["login"]
+            password = request.form["password"]
+            if password == "" or login == "":
+                flash("Password or name cannot be empty!", "info")
+                return render_template('newacc.html')
+            elif password != request.form["password_again"]:
                 flash("Passwords do not match!", "info")
                 return render_template('newacc.html')
+            elif len(login) < 3 or len(login) > 20:
+                flash("Name length should be between 3 and 20 characters!", "info")
+                return render_template('newacc.html')
+            elif len(password) > 100:
+                flash("Password should be no longer than 100 characters!", "info")
+                return render_template('newacc.html')
             else:
-                print("test2")
-                login = request.form["login"]
-                password = request.form["password"]
-
                 found_user = Users.query.filter_by(name=login).first()
 
                 if found_user:
                     flash("This user already exists! Login or use another username!", "info")
                     return render_template('newacc.html')
                 else:
-                    usr = Users(login, password, "")
+                    usr = Users(login, password)
                     db.session.add(usr)
                     db.session.commit()
                     flash("Account created! Proceed to login!", "info")
@@ -179,19 +225,22 @@ def gamepage():
 
         if request.method == 'POST':
             if request.form.get("ping") == "Ping!":
-                move="ping"
+                move = "ping"
             elif request.form.get("apple") == "Take an apple":
-                move="apple"
+                move = "apple"
+            else:
+                move = "Error: No such move!"
             found_user = Users.query.filter_by(name=session["login"]).first()
             found_user.move = move
             db.session.commit()
-            flash("Move successful! You choose: "+move, "info")
+            flash("Move successful! You choose: " + move, "info")
             return redirect(url_for("gamepage"))
         else:
             userr = session["login"]
             found_user = Users.query.filter_by(name=userr).first()
             print(found_user.logs)
-            return render_template('gamebase.html', logs=eval(found_user.logs), toime=62 - (floor(time.time() % 60)))
+            return render_template('gamebase.html', logs=eval(found_user.logs), inv=found_user.inventory,
+                                   toime=minute_length - (floor(time.time() % minute_length)))
     else:
         return redirect(url_for("login"))
 
@@ -209,4 +258,4 @@ thread.start()
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False, host="0.0.0.0")

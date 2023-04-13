@@ -1,16 +1,7 @@
 
-
-html, body {
-  height:100%;
-
-  display:flex;
-  flex-direction:column;
+* {
+  box-sizing: border-box;
 }
-
-body > * {
-  flex-shrink: 0;
-}
-
 body {
 	background-image: url("../img/yellow_back.png");
 	text-align: center;
@@ -51,23 +42,36 @@ p {
 	text-align: left;
 }
 .log{
-    width: fit-content;
     margin: auto;
 	border: 5px solid rgb(215,153,11);
 	background-color: rgb(235, 168, 14);
 	text-align: left;
 	overflow-y: scroll;
-    flex-grow: 1;
 }
-#gamelog {
+.gamelog {
+	border: 5px solid rgb(215,153,11);
+	background-color: rgb(235, 168, 14);
+	text-align: left;
+	overflow-y: scroll;
     margin: 0 0 0 0;
 	width: 50%;
-    flex-grow: 1;
+	height: 85vh;
+    float: left;
+}
+.halfheight {
+	height: 42.5vh;
+}
+@media screen and (max-height: 650px) {
+    .gamelog{
+	    height: 75vh;
+	}
+	.halfheight{
+	    height: 37.5vh;
+	}
 }
 @media screen and (max-width: 800px) {
-  #gamelog, #gamebuttons{
+  .gamelog, #gamebuttons{
     width: 100%;
-	height: 50%;
-    flex-grow: 0; /* The width is 100%, when the viewport is 800px or smaller */
-form {
-}
+	height: 42vh;
+    flex-grow: 0; /* The width is 100%, when the viewport is 800px or smaller */}
+    }
