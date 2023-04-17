@@ -1,3 +1,4 @@
+import random
 from math import floor
 
 from flask import Flask, redirect, url_for, render_template, request, session, flash
@@ -6,20 +7,42 @@ from sqlalchemy.sql import func
 from datetime import timedelta
 import threading
 import time
-import os
 
 minute_length = 10
 
 app = Flask(__name__)
 app.secret_key = "genius"
-basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite3'
 print(app.config['SQLALCHEMY_DATABASE_URI'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.permanent_session_lifetime = timedelta(hours=1)
 
-
 db = SQLAlchemy(app)
+
+bridges = db.Table('bridges',
+                   db.Column('primary', db.Integer, db.ForeignKey('spalls.id')),
+                   db.Column('secondary', db.Integer, db.ForeignKey('spalls.id')))
+
+guestings = db.Table('guestings',
+                     db.Column('spalls', db.Integer, db.ForeignKey('spalls.id')),
+                     db.Column('users', db.Integer, db.ForeignKey('users.id')))
+
+
+class Spalls(db.Model):
+    id = db.Column("id", db.Integer, primary_key=True)
+    name = db.Column(db.String(40))
+    ingredients = db.relationship("Ingredients", backref="spalls")
+    bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id), secondaryjoin=(bridges.c.secondary == id), backref='spallings')
+    guests = db.relationship("Users", secondary=guestings, backref="position")
+
+    def __init__(self, name=None):
+        if name is None:
+            self.name = f'{self.id}'
+        else:
+            self.name = name
+
+    def distance(self, other):
+        pass
 
 
 class Users(db.Model):
@@ -52,18 +75,14 @@ class Inventory(db.Model):
     def __repr__(self):
         return f'<Item {self.item}>'
 
-#class Spalls(db.Model):
-#    _id = db.Column("id", db.Integer, primary_key=True)
-#    name = db.Column(db.String(20))
-#    ingredients = db.Column(db.String(100))
-#
-#    def __init__(self, name, password, email):
-#        self.name = name
-#        self.email = email
-#        self.password = password
-#        self.move = ""
-#        self.inventory = '{}'
-#        self.logs = '[]'
+
+class Ingredients(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    object = db.Column(db.String(120), nullable=False)
+    spall_id = db.Column(db.Integer, db.ForeignKey('spalls.id'), nullable=False)
+
+    def __repr__(self):
+        return f'<Item {self.item}>'
 
 
 def perform_task():
@@ -72,8 +91,10 @@ def perform_task():
         movers = Users.query.filter_by().all()
         for mover in movers:
             move = mover.move
+            print(move)
             if move != "":
                 inventory = mover.inventory
+                newlog="EROWEOWOEOOW"
                 if move == "ping":
                     newlog = "Pong"
                 elif move == "apple":
@@ -82,14 +103,24 @@ def perform_task():
                         if i.item == "Apple":
                             found_inv = i
                             break
-                    if found_inv==None:
-                        found_inv=Inventory(item="Apple",amount=0,users=mover)
+                    if found_inv is None:
+                        found_inv = Inventory(item="Apple", amount=0, users=mover)
                         db.session.add(found_inv)
-                        db.session.commit()
                     found_inv.amount += 1
 
                     newlog = "You took an apple. You now have " + str(found_inv.amount) + " Apples."
+                elif move[:18] == "move to spall no. ":
+                    print("moe:move to spall")
+                    place = move[18:]
+                    newwhere = Spalls.query.filter_by(id=place).first()
+                    now = mover.position[0]
+                    now.guests.remove(mover)
+                    newwhere.guests.append(mover)
+                    newlog = f"You moved from {now} to {newwhere}"
                 else:
+                    print(move)
+                    print(move[:18])
+                    print(move[18:])
                     newlog = "error: Unknown move. Your move is " + move
                 newlog = "[" + time.ctime() + "] " + newlog
 
@@ -103,11 +134,32 @@ def perform_task():
 
 
 def schedule_task():
-    while floor(time.time()) % minute_length != 0:
-        pass
     while True:
+        while floor(time.time()) % minute_length != 0:
+            pass
         perform_task()
-        time.sleep(minute_length)
+        time.sleep(minute_length-1)
+
+
+@app.route("/g", methods=['GET', 'POST'])
+def output():
+    print("gaytesting")
+    gay = Spalls.query.filter_by(id=1).first()
+    print(gay.bridges)
+    bi = Spalls.query.filter_by(id=2).first()
+    gay.bridges.append(bi)
+    print(gay.bridges)
+    Spalls.query.filter_by(id=gay.id).delete()
+    db.session.add(gay)
+    print(gay.bridges)
+    db.session.commit()
+    print(gay.bridges)
+    regay = Spalls.query.filter_by(id=1).first()
+    print(regay.bridges)
+    spa = Spalls.query.filter_by().all()
+    for i in spa:
+        print(i.bridges)
+    return redirect(url_for("homepage"))
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -176,6 +228,10 @@ def newacc():
                     usr = Users(login, password)
                     db.session.add(usr)
                     db.session.commit()
+                    spalls = Spalls.query.filter_by().all()
+                    randomspall = random.choice(spalls)
+                    randomspall.guests.append(usr)
+                    db.session.commit()
                     flash("Account created! Proceed to login!", "info")
                     return redirect(url_for("homepage"))
 
@@ -190,7 +246,7 @@ def admin():
     if "login" in session:
         if session["login"] == "admin":
             user_list = Users.query.filter_by().all()
-            return render_template('admin.html', listt=user_list, lenn=len(user_list))
+            return render_template('admin.html', listt=user_list, lenn=len(user_list), spalls=Spalls.query.filter_by().all(), spalen=len(Spalls.query.filter_by().all()))
         else:
             return redirect(url_for("homepage"))
     else:
@@ -202,19 +258,20 @@ def user():
     email = None
     if "login" in session:
         userr = session["login"]
+        found_user = Users.query.filter_by(name=userr).first()
         if request.method == 'POST':
             if request.form.get("logout") == "logout":
                 return redirect(url_for("logout"))
             elif request.form.get("save") == "Save":
                 email = request.form["email"]
                 session["email"] = email
-                found_user = Users.query.filter_by(name=userr).first()
                 found_user.email = email
                 db.session.commit()
         else:
             if "email" in session:
                 email = session["email"]
-        return render_template('user.html', login=userr, email=email)
+        db.session.commit()
+        return render_template('user.html', login=userr, email=email, pos=found_user.position)
     else:
         return redirect(url_for("login"))
 
@@ -228,6 +285,10 @@ def gamepage():
                 move = "ping"
             elif request.form.get("apple") == "Take an apple":
                 move = "apple"
+            elif request.form.get("cam") == "Chose and move":
+                place = request.form["placelist"]
+                move = "move to spall no. "+place
+
             else:
                 move = "Error: No such move!"
             found_user = Users.query.filter_by(name=session["login"]).first()
@@ -239,8 +300,10 @@ def gamepage():
             userr = session["login"]
             found_user = Users.query.filter_by(name=userr).first()
             print(found_user.logs)
+            print(found_user.position)
+            print(found_user.position[0].bridges)
             return render_template('gamebase.html', logs=eval(found_user.logs), inv=found_user.inventory,
-                                   toime=minute_length - (floor(time.time() % minute_length)))
+                                   toime=minute_length - (floor(time.time() % minute_length)), pos=found_user.position[0])
     else:
         return redirect(url_for("login"))
 
@@ -253,9 +316,9 @@ def logout():
 
 
 thread = threading.Thread(target=schedule_task)
-thread.start()
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+    thread.start()
     app.run(debug=True, use_reloader=False, host="0.0.0.0")

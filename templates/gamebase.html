@@ -11,7 +11,7 @@
 				ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
 				ctx.fillText("Time left: "+ttime, 0, 20);
 				ttime = ttime-1
-				if (ttime <= 0) {
+				if (ttime < 0) {
 					location.reload();
 				}
 			}
@@ -32,11 +32,25 @@
 		<hr>
 		<p>{{i.item}}: {{i.amount}}</p>
 		{% endfor %}
+		<hr>
+		<p>You are at the Spall {{pos}}"</p>
+		<p>All players currently here are:
+		{% for i in pos.guests %}
+			{{i.name}}
+		{% endfor %}
+		</p>
 	</div>
 	<div class="gamelog halfheight">
 		<form method="post" action="#">
-			<p><input type="submit" value="Take an apple" name="apple">
+			<p>Do: <input type="submit" value="Take an apple" name="apple">
 			<input type="submit" value="Ping!" name="ping"></p>
+			<p>Move to:
+				<select id="place" name="placelist">
+				{% for i in pos.bridges %}
+  				<option value="{{i.id}}">{{i}}</option>
+				{% endfor %}
+				</select>
+				<input type="submit" value="Chose and move" name="cam"></p>
 		</form>
 	</div>
 	<script>

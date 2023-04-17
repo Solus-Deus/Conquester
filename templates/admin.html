@@ -9,5 +9,13 @@
 			<tr><td>{{listt[i]["_id"]}}</td><td>{{listt[i]["name"]}}</td><td>{{listt[i]["password"]}}</td><td>{{listt[i]["email"]}}</td></tr>
 		{%endfor%}
 	</table>
+	<table>
+		<tr><th>Spall  id</th><th>Spall name</th><th>Connections</th></tr>
+		{%for i in range(0, spalen)%}
+			<tr><td>{{spalls[i].id}}</td><td>{{spalls[i].name}}</td><td>
+					{{spalls[i].bridges}},
+			</td></tr>
+		{%endfor%}
+	</table>
 </div>
 {% endblock %}
