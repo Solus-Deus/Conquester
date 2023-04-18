@@ -1,4 +1,5 @@
 
+    with app.app_context():
         how_many = input('how many')
         if how_many == "":
             how_many = 100
@@ -6,7 +7,7 @@
             how_many = int(how_many)
         print(f"{how_many} new spalls coming!")
         for i in range(how_many):
-            spall = Spalls()
+            spall = Spalls("")
             print(len(Spalls.query.filter_by().all()))
             if len(Spalls.query.filter_by().all()) != 0:
                 new_connection = random.choice(Spalls.query.filter_by().all())
@@ -31,5 +32,8 @@
         print("Commited! New info incoming:")
         print(Spalls.query.filter_by().all())
         for i in Spalls.query.filter_by().all():
+            i.name = f'Spall no.{i.id}'
+            i.nameorig = False
             print(f"{i}'s connections are {i.bridges}")
         input()
+        db.session.commit()

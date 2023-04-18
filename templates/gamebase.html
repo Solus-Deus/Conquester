@@ -33,10 +33,10 @@
 		<p>{{i.item}}: {{i.amount}}</p>
 		{% endfor %}
 		<hr>
-		<p>You are at the Spall {{pos}}"</p>
+		<p>You are at the spall "{{pos.name}}"</p>
 		<p>All players currently here are:
 		{% for i in pos.guests %}
-			{{i.name}}
+			"{{i.name}}"
 		{% endfor %}
 		</p>
 	</div>
@@ -47,10 +47,19 @@
 			<p>Move to:
 				<select id="place" name="placelist">
 				{% for i in pos.bridges %}
-  				<option value="{{i.id}}">{{i}}</option>
+  				<option value="{{i.id}}">{{i.name}}</option>
 				{% endfor %}
 				</select>
 				<input type="submit" value="Chose and move" name="cam"></p>
+			{%if not pos.nameorig%}
+			<p>The spall you are currently on has a default name, you can change it!</p>
+			<p>
+
+				<input type="text" name="newname">
+				<input type="submit" value="Change spall name" name="csn">
+
+			</p>
+			{%endif%}
 		</form>
 	</div>
 	<script>

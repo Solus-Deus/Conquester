@@ -31,15 +31,21 @@ guestings = db.Table('guestings',
 class Spalls(db.Model):
     id = db.Column("id", db.Integer, primary_key=True)
     name = db.Column(db.String(40))
+    nameorig = db.Column(db.Boolean)
     ingredients = db.relationship("Ingredients", backref="spalls")
     bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id), secondaryjoin=(bridges.c.secondary == id), backref='spallings')
     guests = db.relationship("Users", secondary=guestings, backref="position")
 
-    def __init__(self, name=None):
-        if name is None:
-            self.name = f'{self.id}'
+    def __init__(self, name=""):
+        if name == "":
+            self.name = f'Spall no.{self.id}'
+            self.nameorig = False
         else:
             self.name = name
+            self.nameorig = True
+
+    def __repr__(self):
+        return f'<Spall "{self.name}" ({self.id})>'
 
     def distance(self, other):
         pass
@@ -91,7 +97,6 @@ def perform_task():
         movers = Users.query.filter_by().all()
         for mover in movers:
             move = mover.move
-            print(move)
             if move != "":
                 inventory = mover.inventory
                 newlog="EROWEOWOEOOW"
@@ -110,17 +115,30 @@ def perform_task():
 
                     newlog = "You took an apple. You now have " + str(found_inv.amount) + " Apples."
                 elif move[:18] == "move to spall no. ":
-                    print("moe:move to spall")
                     place = move[18:]
                     newwhere = Spalls.query.filter_by(id=place).first()
                     now = mover.position[0]
-                    now.guests.remove(mover)
-                    newwhere.guests.append(mover)
-                    newlog = f"You moved from {now} to {newwhere}"
+                    if newwhere in now.bridges:
+                        now.guests.remove(mover)
+                        newwhere.guests.append(mover)
+                        newlog = f'You moved from "{now.name}" to "{newwhere.name}"'
+                    else:
+                        newlog = f"Hey! {now.name} is not connected to {newwhere.name}! Are you trying to cheat?"
+                elif move[:16] == "rename spall to ":
+                    newname = move[16:]
+                    now = mover.position[0]
+                    if not now.nameorig:
+                        if len(newname)<20 and len(newname)>3:
+                            now.name = newname
+                            now.nameorig = True
+                            db.session.commit()
+                            newlog = f'Spall no. {now.id} is now named "{now.name}"!'
+                        else:
+                            newlog = f'Spall no. {now.id} didnt get renamed"!'
+
+                    else:
+                        newlog=f"Hey! {now.name} is a original spall name! Are you trying to cheat?"
                 else:
-                    print(move)
-                    print(move[:18])
-                    print(move[18:])
                     newlog = "error: Unknown move. Your move is " + move
                 newlog = "[" + time.ctime() + "] " + newlog
 
@@ -139,27 +157,6 @@ def schedule_task():
             pass
         perform_task()
         time.sleep(minute_length-1)
-
-
-@app.route("/g", methods=['GET', 'POST'])
-def output():
-    print("gaytesting")
-    gay = Spalls.query.filter_by(id=1).first()
-    print(gay.bridges)
-    bi = Spalls.query.filter_by(id=2).first()
-    gay.bridges.append(bi)
-    print(gay.bridges)
-    Spalls.query.filter_by(id=gay.id).delete()
-    db.session.add(gay)
-    print(gay.bridges)
-    db.session.commit()
-    print(gay.bridges)
-    regay = Spalls.query.filter_by(id=1).first()
-    print(regay.bridges)
-    spa = Spalls.query.filter_by().all()
-    for i in spa:
-        print(i.bridges)
-    return redirect(url_for("homepage"))
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -288,7 +285,9 @@ def gamepage():
             elif request.form.get("cam") == "Chose and move":
                 place = request.form["placelist"]
                 move = "move to spall no. "+place
-
+            elif request.form.get("csn") == "Change spall name":
+                newname = request.form.get("newname")
+                move = "rename spall to "+newname
             else:
                 move = "Error: No such move!"
             found_user = Users.query.filter_by(name=session["login"]).first()
@@ -301,6 +300,7 @@ def gamepage():
             found_user = Users.query.filter_by(name=userr).first()
             print(found_user.logs)
             print(found_user.position)
+            print(found_user.position[0].nameorig)
             print(found_user.position[0].bridges)
             return render_template('gamebase.html', logs=eval(found_user.logs), inv=found_user.inventory,
                                    toime=minute_length - (floor(time.time() % minute_length)), pos=found_user.position[0])
