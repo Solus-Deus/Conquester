@@ -8,7 +8,7 @@ from datetime import timedelta
 import threading
 import time
 
-minute_length = 10
+minute_length = 20
 
 app = Flask(__name__)
 app.secret_key = "genius"
@@ -33,7 +33,8 @@ class Spalls(db.Model):
     name = db.Column(db.String(40))
     nameorig = db.Column(db.Boolean)
     ingredients = db.relationship("Ingredients", backref="spalls")
-    bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id), secondaryjoin=(bridges.c.secondary == id), backref='spallings')
+    bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id),
+                              secondaryjoin=(bridges.c.secondary == id), backref='spallings')
     guests = db.relationship("Users", secondary=guestings, backref="position")
 
     def __init__(self, name=""):
@@ -79,7 +80,7 @@ class Inventory(db.Model):
     person_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     def __repr__(self):
-        return f'<Item {self.item}>'
+        return f'<Item {self.item}, {self.amount}>'
 
 
 class Ingredients(db.Model):
@@ -99,7 +100,7 @@ def perform_task():
             move = mover.move
             if move != "":
                 inventory = mover.inventory
-                newlog="EROWEOWOEOOW"
+                newlog = "EROWEOWOEOOW"
                 if move == "ping":
                     newlog = "Pong"
                 elif move == "apple":
@@ -128,7 +129,7 @@ def perform_task():
                     newname = move[16:]
                     now = mover.position[0]
                     if not now.nameorig:
-                        if len(newname)<20 and len(newname)>3:
+                        if 20 > len(newname) > 3:
                             now.name = newname
                             now.nameorig = True
                             db.session.commit()
@@ -137,7 +138,19 @@ def perform_task():
                             newlog = f'Spall no. {now.id} didnt get renamed"!'
 
                     else:
-                        newlog=f"Hey! {now.name} is a original spall name! Are you trying to cheat?"
+                        newlog = f"Hey! {now.name} is a original spall name! Are you trying to cheat?"
+                elif move[:6] == "shout ":
+                    text = move[6:]
+                    newlog = 'You shouted "%s" to everyone on this spall' % text
+                    youhear = f'You hear {mover.name} shout: "%s"' % text
+                    print(youhear)
+                    youhear = "[" + time.ctime() + "] " + youhear
+                    for fellow in mover.position[0].guests:
+                        if not fellow is mover:
+                            fellog = eval(fellow.logs)
+                            fellog.append(youhear)
+                            fellow.logs = str(fellog)
+                            db.session.commit()
                 else:
                     newlog = "error: Unknown move. Your move is " + move
                 newlog = "[" + time.ctime() + "] " + newlog
@@ -145,7 +158,7 @@ def perform_task():
                 loggs = eval(mover.logs)
                 loggs.append(newlog)
                 if len(loggs) > 50:
-                    loggs = loggs[:50]
+                    loggs = loggs[-50:]
                 mover.logs = str(loggs)
                 mover.move = ""
                 db.session.commit()
@@ -156,7 +169,7 @@ def schedule_task():
         while floor(time.time()) % minute_length != 0:
             pass
         perform_task()
-        time.sleep(minute_length-1)
+        time.sleep(minute_length - 1)
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -201,28 +214,28 @@ def login():
 def newacc():
     if request.method == 'POST':
         if request.form.get("create account") == "Submit":
-            login = request.form["login"]
+            loggin = request.form["login"]
             password = request.form["password"]
-            if password == "" or login == "":
+            if password == "" or loggin == "":
                 flash("Password or name cannot be empty!", "info")
                 return render_template('newacc.html')
             elif password != request.form["password_again"]:
                 flash("Passwords do not match!", "info")
                 return render_template('newacc.html')
-            elif len(login) < 3 or len(login) > 20:
+            elif len(loggin) < 3 or len(loggin) > 20:
                 flash("Name length should be between 3 and 20 characters!", "info")
                 return render_template('newacc.html')
             elif len(password) > 100:
                 flash("Password should be no longer than 100 characters!", "info")
                 return render_template('newacc.html')
             else:
-                found_user = Users.query.filter_by(name=login).first()
+                found_user = Users.query.filter_by(name=loggin).first()
 
                 if found_user:
                     flash("This user already exists! Login or use another username!", "info")
                     return render_template('newacc.html')
                 else:
-                    usr = Users(login, password)
+                    usr = Users(loggin, password)
                     db.session.add(usr)
                     db.session.commit()
                     spalls = Spalls.query.filter_by().all()
@@ -243,7 +256,8 @@ def admin():
     if "login" in session:
         if session["login"] == "admin":
             user_list = Users.query.filter_by().all()
-            return render_template('admin.html', listt=user_list, lenn=len(user_list), spalls=Spalls.query.filter_by().all(), spalen=len(Spalls.query.filter_by().all()))
+            return render_template('admin.html', listt=user_list, lenn=len(user_list),
+                                   spalls=Spalls.query.filter_by().all(), spalen=len(Spalls.query.filter_by().all()))
         else:
             return redirect(url_for("homepage"))
     else:
@@ -268,7 +282,7 @@ def user():
             if "email" in session:
                 email = session["email"]
         db.session.commit()
-        return render_template('user.html', login=userr, email=email, pos=found_user.position)
+        return render_template('user.html', login=userr, email=email)
     else:
         return redirect(url_for("login"))
 
@@ -284,10 +298,13 @@ def gamepage():
                 move = "apple"
             elif request.form.get("cam") == "Chose and move":
                 place = request.form["placelist"]
-                move = "move to spall no. "+place
+                move = "move to spall no. " + place
+            elif request.form.get("sho") == "Shout":
+                message = request.form.get("message")
+                move = "shout " + message
             elif request.form.get("csn") == "Change spall name":
                 newname = request.form.get("newname")
-                move = "rename spall to "+newname
+                move = "rename spall to " + newname
             else:
                 move = "Error: No such move!"
             found_user = Users.query.filter_by(name=session["login"]).first()
@@ -298,12 +315,9 @@ def gamepage():
         else:
             userr = session["login"]
             found_user = Users.query.filter_by(name=userr).first()
-            print(found_user.logs)
-            print(found_user.position)
-            print(found_user.position[0].nameorig)
-            print(found_user.position[0].bridges)
             return render_template('gamebase.html', logs=eval(found_user.logs), inv=found_user.inventory,
-                                   toime=minute_length - (floor(time.time() % minute_length)), pos=found_user.position[0])
+                                   toime=minute_length - (floor(time.time() % minute_length)),
+                                   pos=found_user.position[0])
     else:
         return redirect(url_for("login"))
 

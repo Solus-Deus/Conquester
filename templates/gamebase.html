@@ -19,7 +19,7 @@
 			setInterval(MyTimer, 1000);
 		</script>
 	</div>
-	<div class="gamelog", id="down">
+	<div class="gamelog" id="down">
 
 		{% for i in logs %}
 		<hr>
@@ -51,6 +51,7 @@
 				{% endfor %}
 				</select>
 				<input type="submit" value="Chose and move" name="cam"></p>
+			<p>Tell everyone on this spall: <input type="text" name="message"><input type="submit" value="Shout" name="sho"></p>
 			{%if not pos.nameorig%}
 			<p>The spall you are currently on has a default name, you can change it!</p>
 			<p>
