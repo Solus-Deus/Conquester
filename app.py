@@ -32,14 +32,27 @@ class Spalls(db.Model):
     id = db.Column("id", db.Integer, primary_key=True)
     name = db.Column(db.String(40))
     nameorig = db.Column(db.Boolean)
+    connections = db.Colums(db.Integer)
     ingredients = db.relationship("Ingredients", backref="spalls")
     bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id),
                               secondaryjoin=(bridges.c.secondary == id), backref='spallings')
     guests = db.relationship("Users", secondary=guestings, backref="position")
 
-    def __init__(self, name=""):
+    def __init__(self, name="", con=None):
+        if con is None:
+            k = 0
+            while True:
+                m = random.randint(0, 3)
+                if m == 0:
+                    k += 3
+                else:
+                    k += m
+                    break
+        else:
+            k = con
+        self.connections = k
         if name == "":
-            self.name = f'Spall no.{self.id}'
+            self.name = 'Unnamed spall'
             self.nameorig = False
         else:
             self.name = name
@@ -48,8 +61,23 @@ class Spalls(db.Model):
     def __repr__(self):
         return f'<Spall "{self.name}" ({self.id})>'
 
-    def distance(self, other):
-        pass
+    def connect(self, target):
+        self.bridges.append(target)
+        target.bridges.append(self)
+
+    def create_neighbor(self):
+        nb = Spalls()
+        nb.name = f'Spall no.{nb.id}'
+        self.connect(nb)
+
+    def wake(self):
+        while self.connections < len(self.bridges):
+            if random.randint(1, 100) == 39:
+                spalls = Spalls.query.filter_by().all()
+                rs1 = random.choice(spalls)
+                self.connect(rs1)
+            else:
+                self.create_neighbor()
 
 
 class Users(db.Model):
@@ -146,7 +174,7 @@ def perform_task():
                     print(youhear)
                     youhear = "[" + time.ctime() + "] " + youhear
                     for fellow in mover.position[0].guests:
-                        if not fellow is mover:
+                        if fellow is not mover:
                             fellog = eval(fellow.logs)
                             fellog.append(youhear)
                             fellow.logs = str(fellog)
