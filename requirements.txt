@@ -1,3 +1,4 @@
 Flask==2.2.2
 Flask-SQLAlchemy==3.0.2
 SQLAlchemy==1.4.46
+randomname==0.2.1

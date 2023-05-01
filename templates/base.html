@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
-		<head>
-			<meta name="viewport" content="width=device-width, initial-scale=1">
-			<link rel="stylesheet" href="{{ url_for('static', filename='css/mystyle.css')}}">
-			<title>Conquester</title>
-			<link rel="icon" href="../static/img/ison.png" type="image/x-icon">
-		</head>
-	<body>
-		<div class=nav>
-			<a href="../">Home</a>
-			<span style="float: right">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mystyle.css')}}">
+    <title>Conquester</title>
+    <link rel="icon" href="../static/img/ison.png" type="image/x-icon">
+</head>
+<body>
+<div class=nav>
+    <a href="../">Home</a>
+    <span style="float: right">
 			{% if "login" in session %}
 				<a href="../user" >{{session["login"]}}</a>
 			{% else %}
@@ -17,16 +17,16 @@
 				<a href="../createaccount">Sign up</a>
 			{% endif %}
 			</span>
-		</div>
-		{% with msgs = get_flashed_messages() %}
-			{% if msgs %}
-				{% for msg in msgs %}
-				<p>{{msg}}</p>
-				{% endfor %}
-			{% endif %}
-		{%endwith%}
-		{%block content%}
-		{% endblock %}
+</div>
+{% with msgs = get_flashed_messages() %}
+{% if msgs %}
+{% for msg in msgs %}
+<p>{{msg}}</p>
+{% endfor %}
+{% endif %}
+{%endwith%}
+{%block content%}
+{% endblock %}
 
-	</body>
+</body>
 </html>

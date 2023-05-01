@@ -24,6 +24,14 @@ h2 {
 	text-align: center;
 }
 
+h3 {
+    margin: 0px 0px 0px 5px;
+    padding: 0px 0px 0px 0px;
+	color: navy;
+	font-size: 20px;
+	text-align: left;
+}
+
 hr {
     height:1px;
     border: 1px solid rgb(215,153,11);
@@ -33,6 +41,7 @@ hr {
 p {
   margin-top: 2px;
   margin-bottom: 2px;
+  margin-left: 4px;
 }
 
 .nav {
@@ -71,7 +80,7 @@ p {
 }
 @media screen and (max-width: 800px) {
   .gamelog, #gamebuttons{
-    width: 100%;
+    width: 90%;
 	height: 42vh;
     flex-grow: 0; /* The width is 100%, when the viewport is 800px or smaller */}
     }

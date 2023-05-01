@@ -3,19 +3,17 @@
 <h2>Welcome, админус!</h2>
 <h1>Probably the ABMID page</h1>
 <div class="log">
-	<table>
-		<tr><th>#</th><th>Name</th><th>Password</th><th>Email</th><th>Position</th><th>Apples</th></tr>
-		{%for i in range(0, lenn)%}
-			<tr><td>{{listt[i]["id"]}}</td><td>{{listt[i]["name"]}}</td><td>{{listt[i]["password"]}}</td><td>{{listt[i]["email"]}}</td><td>{{listt[i]["position"]}}</td><td>{{listt[i]["inventory"]}}</td></tr>
-		{%endfor%}
-	</table>
-	<table>
-		<tr><th>Spall  id</th><th>Spall name</th><th>Connections</th></tr>
-		{%for i in range(0, spalen)%}
-			<tr><td>{{spalls[i].id}}</td><td>{{spalls[i].name}}</td><td>
-					{{spalls[i].bridges}},
-			</td></tr>
-		{%endfor%}
-	</table>
+    <table>
+        <tr><th>#</th><th>Name</th><th>Password</th><th>Email</th><th>Position</th><th>Apples</th></tr>
+        {%for i in range(0, lenn)%}
+        <tr><td>{{listt[i]["id"]}}</td><td>{{listt[i]["name"]}}</td><td>{{listt[i]["password"]}}</td><td>{{listt[i]["email"]}}</td><td>{{listt[i]["position"]}}</td><td>{{listt[i]["inventory"]}}</td></tr>
+        {%endfor%}
+    </table>
+    <table>
+        <tr><th>Spall  id</th><th>Spall name</th><th>Connection number</th><th>Connections</th></tr>
+        {%for i in range(0, spalen)%}
+        <tr><td>{{spalls[i].id}}</td><td>{{spalls[i].name}}</td><td>{{spalls[i].connections}}</td><td>{{spalls[i].bridges}}</td></tr>
+        {%endfor%}
+    </table>
 </div>
 {% endblock %}

@@ -1,14 +1,16 @@
 import random
+import randomname
 from math import floor
 
 from flask import Flask, redirect, url_for, render_template, request, session, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import backref
 from sqlalchemy.sql import func
 from datetime import timedelta
 import threading
 import time
 
-minute_length = 20
+minute_length = 10
 
 app = Flask(__name__)
 app.secret_key = "genius"
@@ -20,74 +22,97 @@ app.permanent_session_lifetime = timedelta(hours=1)
 db = SQLAlchemy(app)
 
 bridges = db.Table('bridges',
-                   db.Column('primary', db.Integer, db.ForeignKey('spalls.id')),
-                   db.Column('secondary', db.Integer, db.ForeignKey('spalls.id')))
+                   db.Column('primary', db.Integer, db.ForeignKey('spall.id')),
+                   db.Column('secondary', db.Integer, db.ForeignKey('spall.id')))
 
 guestings = db.Table('guestings',
-                     db.Column('spalls', db.Integer, db.ForeignKey('spalls.id')),
-                     db.Column('users', db.Integer, db.ForeignKey('users.id')))
+                     db.Column('spall', db.Integer, db.ForeignKey('spall.id')),
+                     db.Column('user', db.Integer, db.ForeignKey('user.id')))
 
 
-class Spalls(db.Model):
+def conrandom():
+    m = random.randint(1, 6)
+    if m < 4:
+        k = 2
+    elif m == 4:
+        k = 1
+    else:
+        k = 2
+        while True:
+            m = random.randint(1, 3)
+            if m == 3:
+                k += 2
+            else:
+                k += m
+                break
+    return k
+
+
+class Spall(db.Model):
     id = db.Column("id", db.Integer, primary_key=True)
     name = db.Column(db.String(40))
     nameorig = db.Column(db.Boolean)
-    connections = db.Colums(db.Integer)
-    ingredients = db.relationship("Ingredients", backref="spalls")
-    bridges = db.relationship("Spalls", secondary=bridges, primaryjoin=(bridges.c.primary == id),
+    size = db.Column(db.Integer)
+    awake = db.Column(db.Boolean)
+    ingredients = db.relationship("Ingredients", backref="spall")
+    bridges = db.relationship("Spall", secondary=bridges, primaryjoin=(bridges.c.primary == id),
                               secondaryjoin=(bridges.c.secondary == id), backref='spallings')
-    guests = db.relationship("Users", secondary=guestings, backref="position")
+    guests = db.relationship("User", secondary=guestings, backref="position")
 
     def __init__(self, name="", con=None):
         if con is None:
-            k = 0
-            while True:
-                m = random.randint(0, 3)
-                if m == 0:
-                    k += 3
-                else:
-                    k += m
-                    break
+            k = conrandom()
         else:
             k = con
-        self.connections = k
+        # if Spall.query.filter_by(id=1).first() in self.bridges and k < 3:
+        #    k += 2
+        self.size = k
         if name == "":
             self.name = 'Unnamed spall'
             self.nameorig = False
         else:
             self.name = name
             self.nameorig = True
+        self.awake = False
 
     def __repr__(self):
-        return f'<Spall "{self.name}" ({self.id})>'
+        return f'<Spall "{self.name}" #{self.id}>'
 
     def connect(self, target):
         self.bridges.append(target)
         target.bridges.append(self)
+        db.session.commit()
 
     def create_neighbor(self):
-        nb = Spalls()
-        nb.name = f'Spall no.{nb.id}'
+        nb = Spall()
+        db.session.add(nb)
+        nb = Spall.query.filter_by(name="Unnamed spall").first()
+        nb.name = f'Spall {randomname.generate("n/")}'
         self.connect(nb)
 
     def wake(self):
-        while self.connections < len(self.bridges):
-            if random.randint(1, 100) == 39:
-                spalls = Spalls.query.filter_by().all()
-                rs1 = random.choice(spalls)
+        while self.size > len(self.bridges):
+            spall = Spall.query.filter_by(awake=False).all()
+            if random.randint(1, 20) == 20 and len(spall) > 1:
+                rs1 = random.choice(spall)
+                while rs1 is self:
+                    rs1 = random.choice(spall)
                 self.connect(rs1)
             else:
                 self.create_neighbor()
+        self.awake = True
+        db.session.commit()
 
 
-class Users(db.Model):
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
     password = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100))
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     move = db.Column(db.String(100))
-    inventory = db.relationship("Inventory", backref="users")
+    bars = db.relationship("PlayerBar", backref="user")
+    inventory = db.relationship("Item", backref="user")
     logs = db.Column(db.String(10000))
 
     def __init__(self, name, password):
@@ -96,60 +121,144 @@ class Users(db.Model):
         self.email = ""
         self.move = ""
         self.logs = '[]'
+        lvl = PlayerBar("Level", 1)
+        xp = PlayerBar("Experience", 0, False, 20)
+        hp = PlayerBar("Health", 20, False, 20)
+        self.bars.append(lvl)
+        self.bars.append(xp)
+        self.bars.append(hp)
+        db.session.add_all([lvl, xp, hp])
 
     def __repr__(self):
         return f'<User {self.name}>'
 
+    def evalxp(self):
+        lvl = next(i for i in self.bars if i.name == "Level")
+        xp = next(i for i in self.bars if i.name == "Experience")
+        hp = next(i for i in self.bars if i.name == "Health")
+        while xp.value >= xp.maxx:
+            xp.value -= xp.maxx
+            lvl.value += 1
+            xp.maxx = 10 * 2 ** lvl.value
+        while xp.value < 0:
+            lvl.value += 1
+            xp.maxx = 10 * 2 ** lvl.value
+            xp.value += xp.maxx
+        hp.maxx = 15 + lvl.value * 5
+        db.session.commit()
 
-class Inventory(db.Model):
+
+class PlayerBar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    item = db.Column(db.String(120), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)
-    person_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    value = db.Column(db.Integer, nullable=False)
+    infinite = db.Column(db.Boolean)
+    maxx = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def __init__(self, name, value=0, infin=True, maxx=None):
+        self.name = name
+        self.value = value
+        self.infinite = infin
+        if not infin:
+            self.maxx = maxx
 
     def __repr__(self):
-        return f'<Item {self.item}, {self.amount}>'
+        return f'<PlayerBar {self.name}>'
+
+
+class Item(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
+    bars = db.relationship("ItemBar", backref="item")
+    person_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def __init__(self, name, amount=0):
+        self.name = name
+        self.amount = amount
+
+    def __repr__(self):
+        return f'<Item {self.name} ({self.amount})>'
+
+
+class ItemBar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    value = db.Column(db.Integer, nullable=False)
+    infinite = db.Column(db.Boolean)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+
+    def __init__(self, name, value=0, infin=True):
+        self.name = name
+        self.value = value
+        self.infinite = infin
+
+    def __repr__(self):
+        return f'<ItemBar {self.name} of {self.item_id}>'
 
 
 class Ingredients(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    object = db.Column(db.String(120), nullable=False)
-    spall_id = db.Column(db.Integer, db.ForeignKey('spalls.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    spall_id = db.Column(db.Integer, db.ForeignKey('spall.id'), nullable=False)
 
     def __repr__(self):
-        return f'<Item {self.item}>'
+        return f'<Ingredient {self.name}>'
 
 
 def perform_task():
     print(time.ctime())
     with app.app_context():
-        movers = Users.query.filter_by().all()
+        movers = User.query.filter_by().all()
         for mover in movers:
+            bars = mover.bars
+            hp = next(i for i in bars if i.name == "Health")
+            if hp.value < hp.maxx:
+                hp.value += 1
             move = mover.move
             if move != "":
                 inventory = mover.inventory
                 newlog = "EROWEOWOEOOW"
-                if move == "ping":
-                    newlog = "Pong"
-                elif move == "apple":
-                    found_inv = None
+                if move == "apple":
+                    found_item = None
                     for i in inventory:
-                        if i.item == "Apple":
-                            found_inv = i
+                        if i.name == "Apple":
+                            found_item = i
                             break
-                    if found_inv is None:
-                        found_inv = Inventory(item="Apple", amount=0, users=mover)
-                        db.session.add(found_inv)
-                    found_inv.amount += 1
+                    if found_item is None:
+                        found_item = Item("Apple")
+                        mover.inventory.append(found_item)
+                        db.session.add(found_item)
+                    found_item.amount += 1
 
-                    newlog = "You took an apple. You now have " + str(found_inv.amount) + " Apples."
+                    newlog = "You took an apple. You now have " + str(found_item.amount) + " Apples."
+                elif move[:3] == "use":
+                    use, item, num = move.split(",")
+                    num=int(num)
+                    item = next(i for i in mover.inventory if i.name == item)
+                    if item.amount < num:
+                        newlog = f"You don't have enough {item.name}s"
+                    else:
+                        item.amount -= num
+                        if item.name == "Apple":
+                            addxp = 0
+                            for i in range(num):
+                                addxp += random.randint(2, 4)
+                            xp = next(i for i in mover.bars if i.name == "Experience")
+                            xp.value += addxp
+                            newlog = f'You consumed {num} Apple(s) and gained {addxp} xp.'
+                        else:
+                            newlog = f'You consumed {num} "{item.name}(s)". Why? Nobody knows...'
                 elif move[:18] == "move to spall no. ":
                     place = move[18:]
-                    newwhere = Spalls.query.filter_by(id=place).first()
+                    newwhere = Spall.query.filter_by(id=place).first()
                     now = mover.position[0]
                     if newwhere in now.bridges:
                         now.guests.remove(mover)
                         newwhere.guests.append(mover)
+                        if not newwhere.awake:
+                            newwhere.wake()
                         newlog = f'You moved from "{now.name}" to "{newwhere.name}"'
                     else:
                         newlog = f"Hey! {now.name} is not connected to {newwhere.name}! Are you trying to cheat?"
@@ -189,7 +298,8 @@ def perform_task():
                     loggs = loggs[-50:]
                 mover.logs = str(loggs)
                 mover.move = ""
-                db.session.commit()
+            mover.evalxp()
+            db.session.commit()
 
 
 def schedule_task():
@@ -220,7 +330,7 @@ def login():
             # login = request.form["login"]
             password = request.form["password"]
 
-            found_user = Users.query.filter_by(name=request.form["login"]).first()
+            found_user = User.query.filter_by(name=request.form["login"]).first()
             if found_user and password == found_user.password:
                 session["login"] = found_user.name
                 session["email"] = found_user.email
@@ -257,18 +367,19 @@ def newacc():
                 flash("Password should be no longer than 100 characters!", "info")
                 return render_template('newacc.html')
             else:
-                found_user = Users.query.filter_by(name=loggin).first()
+                found_user = User.query.filter_by(name=loggin).first()
 
                 if found_user:
                     flash("This user already exists! Login or use another username!", "info")
                     return render_template('newacc.html')
                 else:
-                    usr = Users(loggin, password)
+                    usr = User(loggin, password)
                     db.session.add(usr)
                     db.session.commit()
-                    spalls = Spalls.query.filter_by().all()
-                    randomspall = random.choice(spalls)
+                    spall = Spall.query.filter_by().all()
+                    randomspall = random.choice(spall)
                     randomspall.guests.append(usr)
+                    randomspall.wake()
                     db.session.commit()
                     flash("Account created! Proceed to login!", "info")
                     return redirect(url_for("homepage"))
@@ -283,9 +394,9 @@ def newacc():
 def admin():
     if "login" in session:
         if session["login"] == "admin":
-            user_list = Users.query.filter_by().all()
+            user_list = User.query.filter_by().all()
             return render_template('admin.html', listt=user_list, lenn=len(user_list),
-                                   spalls=Spalls.query.filter_by().all(), spalen=len(Spalls.query.filter_by().all()))
+                                   spalls=Spall.query.filter_by().all(), spalen=len(Spall.query.filter_by().all()))
         else:
             return redirect(url_for("homepage"))
     else:
@@ -297,7 +408,7 @@ def user():
     email = None
     if "login" in session:
         userr = session["login"]
-        found_user = Users.query.filter_by(name=userr).first()
+        found_user = User.query.filter_by(name=userr).first()
         if request.method == 'POST':
             if request.form.get("logout") == "logout":
                 return redirect(url_for("logout"))
@@ -320,8 +431,9 @@ def gamepage():
     if "login" in session:
 
         if request.method == 'POST':
-            if request.form.get("ping") == "Ping!":
-                move = "ping"
+            found_user = User.query.filter_by(name=session["login"]).first()
+            if request.form.get("ping") == "Do nothing (default)":
+                move = ""
             elif request.form.get("apple") == "Take an apple":
                 move = "apple"
             elif request.form.get("cam") == "Chose and move":
@@ -334,16 +446,20 @@ def gamepage():
                 newname = request.form.get("newname")
                 move = "rename spall to " + newname
             else:
-                move = "Error: No such move!"
-            found_user = Users.query.filter_by(name=session["login"]).first()
+                for item in found_user.inventory:
+                    if request.form.get(f"use {item.name}") == "Use":
+                        move = f"use,{item.name},{request.form[f'numberof {item.name}']}"
+                        break
+                else:
+                    move = "Error: No such move!"
             found_user.move = move
             db.session.commit()
-            flash("Move successful! You choose: " + move, "info")
+            flash(f'You choose move: "{move}", it will happen soon.', "info")
             return redirect(url_for("gamepage"))
         else:
             userr = session["login"]
-            found_user = Users.query.filter_by(name=userr).first()
-            return render_template('gamebase.html', logs=eval(found_user.logs), inv=found_user.inventory,
+            found_user = User.query.filter_by(name=userr).first()
+            return render_template('gamebase.html', logs=eval(found_user.logs), user=found_user,
                                    toime=minute_length - (floor(time.time() % minute_length)),
                                    pos=found_user.position[0])
     else:
@@ -362,5 +478,12 @@ thread = threading.Thread(target=schedule_task)
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        if len(Spall.query.filter_by().all()) == 0:
+            zero = Spall(name="Point Alpha", con=8)
+            db.session.add(zero)
+            db.session.commit()
+            zero = Spall.query.filter_by().first()
+            zero.wake()
+            db.session.commit()
     thread.start()
     app.run(debug=True, use_reloader=False, host="0.0.0.0")

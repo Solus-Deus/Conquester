@@ -1,69 +1,81 @@
 {% extends "base.html" %}
 {%block content%}
-	<div>
-		<canvas id=myCanvas width=120 height=22 class=log> </canvas>
-		<script>
-			var c = document.getElementById("myCanvas");
-			var ctx = c.getContext("2d");
-			var ttime = {{toime}};
-			ctx.font = "20px Arial";
-			function MyTimer () {
-				ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
-				ctx.fillText("Time left: "+ttime, 0, 20);
-				ttime = ttime-1
-				if (ttime < 0) {
-					location.reload();
-				}
-			}
+<div>
+    <canvas id=myCanvas width=120 height=22 class=log> </canvas>
+    <script>
+        var c = document.getElementById("myCanvas");
+        var ctx = c.getContext("2d");
+        var ttime = {{toime}};
+        ctx.font = "20px Arial";
+        function MyTimer () {
+            ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+            ctx.fillText("Time left: "+ttime, 0, 20);
+            ttime = ttime-1
+            if (ttime < 0) {
+                location.reload();
+            }
+        }
 
-			setInterval(MyTimer, 1000);
-		</script>
-	</div>
-	<div class="gamelog" id="down">
+        setInterval(MyTimer, 1000);
+    </script>
+</div>
+<div class="gamelog" id="down">
 
-		{% for i in logs %}
-		<hr>
-		<p>{{i}}</p>
-		{% endfor %}
-	</div>
-	<div class="gamelog halfheight">
+    {% for i in logs %}
+    <hr>
+    <p>{{i}}</p>
+    {% endfor %}
+</div>
+<div class="gamelog halfheight">
+    <h3>Bars</h3>
+    {% for i in user.bars %}
+    <p>{{i.name}}: {{i.value}}
+        {%if not i.infinite%}
+        / {{i.maxx}}
+        {%endif%}
+    </p>
+    {% endfor %}
+    <hr>
+    <h3>Inventory</h3>
+    <form method="post" action="#">
+        {% for i in user.inventory %}
+        <p>{{i.name}}: {{i.amount}} <input type="submit" value="Use" name="use {{i.name}}"><input type="text" name="numberof {{i.name}}" size="4" value="{{i.amount}}">
+        </p>
+        {% endfor %}
+    </form>
+    <hr>
+    <h3>Position</h3>
+    <p>You are at the spall "{{pos.name}}"</p>
+    <p>All players currently here are:
+        {% for i in pos.guests %}
+        "{{i.name}}"
+        {% endfor %}
+    </p>
+</div>
+<div class="gamelog halfheight">
+    <form method="post" action="#">
+        <p>Do: <input type="submit" value="Take an apple" name="apple">
+            <input type="submit" value="Do nothing (default)" name="ping"></p>
+        <p>Move to:
+            <select id="place" name="placelist">
+                {% for i in pos.bridges %}
+                <option value="{{i.id}}">{{i.name}}</option>
+                {% endfor %}
+            </select>
+            <input type="submit" value="Chose and move" name="cam"></p>
+        <p>Tell everyone on this spall: <input type="text" name="message"><input type="submit" value="Shout" name="sho"></p>
+        {%if not pos.nameorig%}
+        <p>The spall you are currently on has a default name, you can change it!</p>
+        <p>
 
-		{% for i in inv %}
-		<hr>
-		<p>{{i.item}}: {{i.amount}}</p>
-		{% endfor %}
-		<hr>
-		<p>You are at the spall "{{pos.name}}"</p>
-		<p>All players currently here are:
-		{% for i in pos.guests %}
-			"{{i.name}}"
-		{% endfor %}
-		</p>
-	</div>
-	<div class="gamelog halfheight">
-		<form method="post" action="#">
-			<p>Do: <input type="submit" value="Take an apple" name="apple">
-			<input type="submit" value="Ping!" name="ping"></p>
-			<p>Move to:
-				<select id="place" name="placelist">
-				{% for i in pos.bridges %}
-  				<option value="{{i.id}}">{{i.name}}</option>
-				{% endfor %}
-				</select>
-				<input type="submit" value="Chose and move" name="cam"></p>
-			<p>Tell everyone on this spall: <input type="text" name="message"><input type="submit" value="Shout" name="sho"></p>
-			{%if not pos.nameorig%}
-			<p>The spall you are currently on has a default name, you can change it!</p>
-			<p>
+            <input type="text" name="newname">
+            <input type="submit" value="Change spall name" name="csn">
 
-				<input type="text" name="newname">
-				<input type="submit" value="Change spall name" name="csn">
-
-			</p>
-			{%endif%}
-		</form>
-	</div>
-	<script>
+        </p>
+        {%endif%}
+    </form>
+</div>
+<script>
 		var objDiv = document.getElementById("down");
 		objDiv.scrollTop = objDiv.scrollHeight;
 	</script>

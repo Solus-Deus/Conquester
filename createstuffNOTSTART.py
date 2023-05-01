@@ -1,4 +1,4 @@
-"""
+if False:
     with app.app_context():
         how_many = input('how many')
         if how_many == "":
@@ -34,4 +34,4 @@
             i.nameorig = False
             print(f"{i}'s connections are {i.bridges}")
         input()
-        db.session.commit()"""
+        db.session.commit()
