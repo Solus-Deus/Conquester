@@ -4,7 +4,6 @@ from math import floor
 
 from flask import Flask, redirect, url_for, render_template, request, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import backref
 from sqlalchemy.sql import func
 from datetime import timedelta
 import threading
@@ -54,7 +53,7 @@ class Spall(db.Model):
     nameorig = db.Column(db.Boolean)
     size = db.Column(db.Integer)
     awake = db.Column(db.Boolean)
-    ingredients = db.relationship("Ingredients", backref="spall")
+    ingredients = db.relationship("Ingredient", backref="spall")
     bridges = db.relationship("Spall", secondary=bridges, primaryjoin=(bridges.c.primary == id),
                               secondaryjoin=(bridges.c.secondary == id), backref='spallings')
     guests = db.relationship("User", secondary=guestings, backref="position")
@@ -68,7 +67,7 @@ class Spall(db.Model):
         #    k += 2
         self.size = k
         if name == "":
-            self.name = 'Unnamed spall'
+            self.name = f'Spall {randomname.generate("n/").capitalize()}'
             self.nameorig = False
         else:
             self.name = name
@@ -86,22 +85,55 @@ class Spall(db.Model):
     def create_neighbor(self):
         nb = Spall()
         db.session.add(nb)
-        nb = Spall.query.filter_by(name="Unnamed spall").first()
-        nb.name = f'Spall {randomname.generate("n/")}'
+        nb = Spall.query.filter_by().all()[-1]
         self.connect(nb)
 
     def wake(self):
         while self.size > len(self.bridges):
-            spall = Spall.query.filter_by(awake=False).all()
-            if random.randint(1, 20) == 20 and len(spall) > 1:
-                rs1 = random.choice(spall)
+            sspall = Spall.query.filter_by(awake=False).all()
+            if random.randint(1, 20) == 20 and len(sspall) > 1:
+                rs1 = random.choice(sspall)
                 while rs1 is self:
-                    rs1 = random.choice(spall)
+                    rs1 = random.choice(sspall)
                 self.connect(rs1)
             else:
                 self.create_neighbor()
         self.awake = True
+        if self.size == 1:
+            for i in range(5):
+                self.roll_for_stuff()
+        else:
+            for i in range(self.size):
+                self.roll_for_stuff()
         db.session.commit()
+
+    def roll_for_stuff(self):
+        pro = random.randint(1, 100)
+        apple_bar = None
+        dungeon = None
+        if pro == 100:
+            dungeon = Ingredient("big chest")
+            apple_bar = IngBar("Apples", random.randint(250, 500) + random.randint(250, 500))
+        elif pro == 99:
+            dungeon = Ingredient("big tree")
+            apple_bar = IngBar("Apples", 250, False, 250)
+        elif pro >= 96:
+            dungeon = Ingredient("average chest")
+            apple_bar = IngBar("Apples", random.randint(50, 100) + random.randint(50, 100))
+        elif pro >= 93:
+            dungeon = Ingredient("average tree")
+            apple_bar = IngBar("Apples", 50, False, 50)
+        elif pro >= 85:
+            dungeon = Ingredient("small chest")
+            apple_bar = IngBar("Apples", random.randint(10, 20) + random.randint(10, 20))
+        elif pro >= 77:
+            dungeon = Ingredient("small tree")
+            apple_bar = IngBar("Apples", 10, False, 10)
+        if dungeon is not None:
+            dungeon.bars.append(apple_bar)
+            db.session.add_all([dungeon, apple_bar])
+            dungeon = Ingredient.query.filter_by().all()[-1]
+            self.ingredients.append(dungeon)
 
 
 class User(db.Model):
@@ -141,30 +173,11 @@ class User(db.Model):
             lvl.value += 1
             xp.maxx = 10 * 2 ** lvl.value
         while xp.value < 0:
-            lvl.value += 1
+            lvl.value -= 1
             xp.maxx = 10 * 2 ** lvl.value
             xp.value += xp.maxx
         hp.maxx = 15 + lvl.value * 5
         db.session.commit()
-
-
-class PlayerBar(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    value = db.Column(db.Integer, nullable=False)
-    infinite = db.Column(db.Boolean)
-    maxx = db.Column(db.Integer)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    def __init__(self, name, value=0, infin=True, maxx=None):
-        self.name = name
-        self.value = value
-        self.infinite = infin
-        if not infin:
-            self.maxx = maxx
-
-    def __repr__(self):
-        return f'<PlayerBar {self.name}>'
 
 
 class Item(db.Model):
@@ -182,35 +195,94 @@ class Item(db.Model):
         return f'<Item {self.name} ({self.amount})>'
 
 
-class ItemBar(db.Model):
+class Ingredient(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    bars = db.relationship("IngBar", backref="ingredient")
+    spall_id = db.Column(db.Integer, db.ForeignKey('spall.id'))
+
+    def __init__(self, tyype, name=""):
+        self.type = tyype
+        if name == "":
+            self.name = randomname.generate("a/") + " " + tyype
+            self.name = self.name.capitalize()
+        else:
+            self.name = name
+
+    def __repr__(self):
+        return f'<Ingredient {self.type} "{self.name}">'
+
+
+class PlayerBar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    value = db.Column(db.Integer, nullable=False)
+    value = db.Column(db.Float, nullable=False)
     infinite = db.Column(db.Boolean)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    maxx = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def __init__(self, name, value=0, infin=True):
+    def __init__(self, name, value=0, infin=True, maxx=None):
         self.name = name
         self.value = value
         self.infinite = infin
+        if not infin:
+            self.maxx = maxx
 
     def __repr__(self):
-        return f'<ItemBar {self.name} of {self.item_id}>'
+        return f'<PlayerBar {self.name}>'
 
 
-class Ingredients(db.Model):
+class ItemBar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    spall_id = db.Column(db.Integer, db.ForeignKey('spall.id'), nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    infinite = db.Column(db.Boolean)
+    maxx = db.Column(db.Integer)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+
+    def __init__(self, name, value=0, infin=True, maxx=None):
+        self.name = name
+        self.value = value
+        self.infinite = infin
+        if not infin:
+            self.maxx = maxx
 
     def __repr__(self):
-        return f'<Ingredient {self.name}>'
+        return f'<ItemBar {self.name}>'
+
+
+class IngBar(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    infinite = db.Column(db.Boolean)
+    maxx = db.Column(db.Integer)
+    ing_id = db.Column(db.Integer, db.ForeignKey('ingredient.id'), nullable=False)
+
+    def __init__(self, name, value=0, infin=True, maxx=None):
+        self.name = name
+        self.value = value
+        self.infinite = infin
+        if not infin:
+            self.maxx = maxx
+
+    def __repr__(self):
+        return f'<IngBar {self.name}>'
 
 
 def perform_task():
     print(time.ctime())
     with app.app_context():
+        spalls = Spall.query.filter_by().all()
         movers = User.query.filter_by().all()
+        for spall in spalls:
+            for ing in spall.ingredients:
+                apples = next(i for i in ing.bars if i.name == "Apples")
+                if not apples.infinite:
+                    if apples.value < apples.maxx:
+                        apples.value += apples.maxx / 100
+                        apples.value = round(apples.value, 2)
         for mover in movers:
             bars = mover.bars
             hp = next(i for i in bars if i.name == "Health")
@@ -220,7 +292,34 @@ def perform_task():
             if move != "":
                 inventory = mover.inventory
                 newlog = "EROWEOWOEOOW"
-                if move == "apple":
+                if move[:8] == "use item":
+                    use, item, num = move.split(",")
+                    num = int(num)
+                    item = next(i for i in mover.inventory if i.name == item)
+                    if item.amount < num:
+                        newlog = f"You don't have enough {item.name}s"
+                    # elif num < 0:
+                    #    newlog = f"bro poggers go back to math class and try eating {num} apples gl"
+                    else:
+                        item.amount -= num
+                        if item.name == "Apple":
+                            addxp = 0
+                            if num >= 0:
+                                for i in range(num):
+                                    addxp += random.randint(2, 4)
+                            else:
+                                for i in range(-num):
+                                    addxp -= 4
+                            xp = next(i for i in mover.bars if i.name == "Experience")
+                            xp.value += addxp
+                            newlog = f'You consumed {num} Apple(s) and gained {addxp} xp.'
+                        else:
+                            newlog = f'You consumed {num} "{item.name}(s)". Why? Nobody knows...'
+                elif move[4:7] == "ing":
+                    use_type, ing, ing_id = move.split(",")
+                    pos = mover.position[0]
+                    ing = next(i for i in pos.ingredients if i.id == int(ing_id))
+                    apple_bar = next(i for i in ing.bars if i.name == "Apples")
                     found_item = None
                     for i in inventory:
                         if i.name == "Apple":
@@ -230,26 +329,41 @@ def perform_task():
                         found_item = Item("Apple")
                         mover.inventory.append(found_item)
                         db.session.add(found_item)
-                    found_item.amount += 1
-
-                    newlog = "You took an apple. You now have " + str(found_item.amount) + " Apples."
-                elif move[:3] == "use":
-                    use, item, num = move.split(",")
-                    num=int(num)
-                    item = next(i for i in mover.inventory if i.name == item)
-                    if item.amount < num:
-                        newlog = f"You don't have enough {item.name}s"
-                    else:
-                        item.amount -= num
-                        if item.name == "Apple":
-                            addxp = 0
-                            for i in range(num):
-                                addxp += random.randint(2, 4)
-                            xp = next(i for i in mover.bars if i.name == "Experience")
-                            xp.value += addxp
-                            newlog = f'You consumed {num} Apple(s) and gained {addxp} xp.'
+                    player_apples = next(i for i in mover.inventory if i.name == "Apple")
+                    if use_type == "use":
+                        if ing.type[:-4] == "tree":
+                            lvl = next(i for i in mover.bars if i.name == "Level")
+                            change = random.randint(lvl.value, lvl.value * 5)
+                            if change > floor(apple_bar.value):
+                                change = floor(apple_bar.value)
+                            newlog = f'You interacted with "{ing.name}" and got {change} Apples'
+                            if ing.type[0] == "s":
+                                dif = 1
+                            elif ing.type[0] == "a":
+                                dif = 5
+                            elif ing.type[0] == "b":
+                                dif = 25
+                            else:
+                                dif = 0
+                            ra = random.random()
+                            if ra < dif / lvl.value:
+                                hp = next(i for i in mover.bars if i.name == "Health")
+                                dmg = random.randint(dif, dif * 5)
+                                hp.value -= dmg
+                                newlog += f', but you fell down and lost {dmg} hp'
+                        elif ing.type[:-5] == "chest":
+                            change = floor(apple_bar.value)
                         else:
-                            newlog = f'You consumed {num} "{item.name}(s)". Why? Nobody knows...'
+                            change = 0
+                    elif use_type == "put":
+                        change = -player_apples.amount
+                        newlog = f'You interacted with "{ing.name}" and put {-change} Apples into it'
+                    else:
+                        change = 0
+                        newlog = f'You interacted with "{ing.name}" and somehow broke it. Good job. Notify me pls'
+                    player_apples.amount += change
+                    apple_bar.value -= change
+                    apple_bar.value = round(apple_bar.value, 2)
                 elif move[:18] == "move to spall no. ":
                     place = move[18:]
                     newwhere = Spall.query.filter_by(id=place).first()
@@ -447,11 +561,21 @@ def gamepage():
                 move = "rename spall to " + newname
             else:
                 for item in found_user.inventory:
-                    if request.form.get(f"use {item.name}") == "Use":
-                        move = f"use,{item.name},{request.form[f'numberof {item.name}']}"
+                    if request.form.get(f"use item {item.name}") == "Use":
+                        move = f"use item,{item.name},{request.form[f'numberof {item.name}']}"
                         break
                 else:
-                    move = "Error: No such move!"
+                    for ing in found_user.position[0].ingredients:
+                        if request.form.get(f"use ing {ing.id}") == "Take apples":
+                            move = f"use,ing,{ing.id}"
+                            break
+                    else:
+                        for ing in found_user.position[0].ingredients:
+                            if request.form.get(f"put ing {ing.id}") == "Put all your apples":
+                                move = f"put,ing,{ing.id}"
+                                break
+                        else:
+                            move = "Error: No such move!"
             found_user.move = move
             db.session.commit()
             flash(f'You choose move: "{move}", it will happen soon.', "info")

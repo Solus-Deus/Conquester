@@ -39,7 +39,7 @@
     <h3>Inventory</h3>
     <form method="post" action="#">
         {% for i in user.inventory %}
-        <p>{{i.name}}: {{i.amount}} <input type="submit" value="Use" name="use {{i.name}}"><input type="text" name="numberof {{i.name}}" size="4" value="{{i.amount}}">
+        <p>{{i.name}}: {{i.amount}} <input type="submit" value="Use" name="use item {{i.name}}"><input type="text" name="numberof {{i.name}}" size="4" value="{{i.amount}}">
         </p>
         {% endfor %}
     </form>
@@ -51,11 +51,25 @@
         "{{i.name}}"
         {% endfor %}
     </p>
+    <h3>On this spall:</h3>
+    <form method="post" action="#">
+    {% for i in pos.ingredients %}
+    <p>{{i.name}}, {{i.bars[0].name}}: {{i.bars[0].value}}
+        {%if not i.bars[0].infinite%}
+        / {{i.bars[0].maxx}}
+        {%endif%}
+        <input type="submit" value="Take apples" name="use ing {{i.id}}">
+        {%if i.bars[0].infinite%}
+        <input type="submit" value="Put all your apples" name="put ing {{i.id}}">
+        {%endif%}
+    </p>
+    {% endfor %}
+    </form>
+
 </div>
 <div class="gamelog halfheight">
     <form method="post" action="#">
-        <p>Do: <input type="submit" value="Take an apple" name="apple">
-            <input type="submit" value="Do nothing (default)" name="ping"></p>
+        <p><input type="submit" value="Do nothing (default)" name="ping"></p>
         <p>Move to:
             <select id="place" name="placelist">
                 {% for i in pos.bridges %}

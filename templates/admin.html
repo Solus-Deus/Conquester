@@ -4,15 +4,15 @@
 <h1>Probably the ABMID page</h1>
 <div class="log">
     <table>
-        <tr><th>#</th><th>Name</th><th>Password</th><th>Email</th><th>Position</th><th>Apples</th></tr>
+        <tr><th>#</th><th>Name</th><th>Password</th><th>Email</th><th>Position</th><th>Inventory</th></tr>
         {%for i in range(0, lenn)%}
         <tr><td>{{listt[i]["id"]}}</td><td>{{listt[i]["name"]}}</td><td>{{listt[i]["password"]}}</td><td>{{listt[i]["email"]}}</td><td>{{listt[i]["position"]}}</td><td>{{listt[i]["inventory"]}}</td></tr>
         {%endfor%}
     </table>
     <table>
-        <tr><th>Spall  id</th><th>Spall name</th><th>Connection number</th><th>Connections</th></tr>
+        <tr><th>Spall  id</th><th>Spall name</th><th>Connection number</th><th>Size</th><th>Stuff</th></tr>
         {%for i in range(0, spalen)%}
-        <tr><td>{{spalls[i].id}}</td><td>{{spalls[i].name}}</td><td>{{spalls[i].connections}}</td><td>{{spalls[i].bridges}}</td></tr>
+        <tr><td>{{spalls[i].id}}</td><td>{{spalls[i].name}}</td><td>{{spalls[i].size}}</td><td>{{spalls[i].bridges}}</td><td>{{spalls[i].ingredients}}</td></tr>
         {%endfor%}
     </table>
 </div>
