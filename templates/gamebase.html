@@ -48,7 +48,7 @@
     <p>You are at the spall "{{pos.name}}"</p>
     <p>All players currently here are:
         {% for i in pos.guests %}
-        "{{i.name}}"
+        "{{i.name}}(lvl {{i.bars[0].value}})"
         {% endfor %}
     </p>
     <h3>On this spall:</h3>

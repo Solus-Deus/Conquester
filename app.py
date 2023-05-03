@@ -9,7 +9,7 @@ from datetime import timedelta
 import threading
 import time
 
-minute_length = 10
+minute_length = 20
 
 app = Flask(__name__)
 app.secret_key = "genius"
@@ -230,7 +230,10 @@ class PlayerBar(db.Model):
             self.maxx = maxx
 
     def __repr__(self):
-        return f'<PlayerBar {self.name}>'
+        if self.infinite:
+            return f'<PlayerBar {self.name} ({self.value})>'
+        else:
+            return f'<PlayerBar {self.name} ({self.value}/{self.maxx})>'
 
 
 class ItemBar(db.Model):
@@ -286,124 +289,135 @@ def perform_task():
         for mover in movers:
             bars = mover.bars
             hp = next(i for i in bars if i.name == "Health")
-            if hp.value < hp.maxx:
-                hp.value += 1
-            move = mover.move
-            if move != "":
-                inventory = mover.inventory
-                newlog = "EROWEOWOEOOW"
-                if move[:8] == "use item":
-                    use, item, num = move.split(",")
-                    num = int(num)
-                    item = next(i for i in mover.inventory if i.name == item)
-                    if item.amount < num:
-                        newlog = f"You don't have enough {item.name}s"
-                    # elif num < 0:
-                    #    newlog = f"bro poggers go back to math class and try eating {num} apples gl"
-                    else:
-                        item.amount -= num
-                        if item.name == "Apple":
-                            addxp = 0
-                            if num >= 0:
-                                for i in range(num):
-                                    addxp += random.randint(2, 4)
-                            else:
-                                for i in range(-num):
-                                    addxp -= 4
-                            xp = next(i for i in mover.bars if i.name == "Experience")
-                            xp.value += addxp
-                            newlog = f'You consumed {num} Apple(s) and gained {addxp} xp.'
+            newlog=""
+            if hp.value < 0:
+                newlog = "Owie! You died. That took away the experience you need to get to your curent level. Also you lost all your items."
+                for i in mover.inventory:
+                    i.amount = 0
+                exp = next(i for i in bars if i.name == "Experience")
+                exp.value -= exp.maxx/2
+                hp.value += hp.maxx
+            else:
+                if hp.value < hp.maxx:
+                    hp.value += 1
+                move = mover.move
+                if move != "":
+                    inventory = mover.inventory
+                    newlog = "EROWEOWOEOOW"
+                    if move[:8] == "use item":
+                        use, item, num = move.split(",")
+                        num = int(num)
+                        item = next(i for i in inventory if i.name == item)
+                        if item.amount < num:
+                            newlog = f"You don't have enough {item.name}s"
+                        # elif num < 0:
+                        #    newlog = f"bro poggers go back to math class and try eating {num} apples gl"
                         else:
-                            newlog = f'You consumed {num} "{item.name}(s)". Why? Nobody knows...'
-                elif move[4:7] == "ing":
-                    use_type, ing, ing_id = move.split(",")
-                    pos = mover.position[0]
-                    ing = next(i for i in pos.ingredients if i.id == int(ing_id))
-                    apple_bar = next(i for i in ing.bars if i.name == "Apples")
-                    found_item = None
-                    for i in inventory:
-                        if i.name == "Apple":
-                            found_item = i
-                            break
-                    if found_item is None:
-                        found_item = Item("Apple")
-                        mover.inventory.append(found_item)
-                        db.session.add(found_item)
-                    player_apples = next(i for i in mover.inventory if i.name == "Apple")
-                    if use_type == "use":
-                        if ing.type[:-4] == "tree":
-                            lvl = next(i for i in mover.bars if i.name == "Level")
-                            change = random.randint(lvl.value, lvl.value * 5)
-                            if change > floor(apple_bar.value):
-                                change = floor(apple_bar.value)
-                            newlog = f'You interacted with "{ing.name}" and got {change} Apples'
-                            if ing.type[0] == "s":
-                                dif = 1
-                            elif ing.type[0] == "a":
-                                dif = 5
-                            elif ing.type[0] == "b":
-                                dif = 25
+                            item.amount -= num
+                            if item.name == "Apple":
+                                addxp = 0
+                                if num >= 0:
+                                    for i in range(num):
+                                        addxp += random.randint(2, 4)
+                                else:
+                                    for i in range(-num):
+                                        addxp -= 4
+                                xp = next(i for i in mover.bars if i.name == "Experience")
+                                xp.value += addxp
+                                newlog = f'You consumed {num} Apple(s) and gained {addxp} xp.'
                             else:
-                                dif = 0
-                            ra = random.random()
-                            if ra < dif / lvl.value:
-                                hp = next(i for i in mover.bars if i.name == "Health")
-                                dmg = random.randint(dif, dif * 5)
-                                hp.value -= dmg
-                                newlog += f', but you fell down and lost {dmg} hp'
-                        elif ing.type[:-5] == "chest":
-                            change = floor(apple_bar.value)
+                                newlog = f'You consumed {num} "{item.name}(s)". Why? Nobody knows...'
+                    elif move[4:7] == "ing":
+                        use_type, ing, ing_id = move.split(",")
+                        pos = mover.position[0]
+                        ing = next(i for i in pos.ingredients if i.id == int(ing_id))
+                        apple_bar = next(i for i in ing.bars if i.name == "Apples")
+                        player_apples = None
+                        for i in inventory:
+                            if i.name == "Apple":
+                                player_apples = i
+                                break
+                        if player_apples is None:
+                            player_apples = Item("Apple")
+                            inventory.append(player_apples)
+                            db.session.add(player_apples)
+                        if use_type == "use":
+                            if ing.type[-4:] == "tree":
+                                lvl = next(i for i in mover.bars if i.name == "Level")
+                                change = random.randint(lvl.value, lvl.value * 5)
+                                if change > floor(apple_bar.value):
+                                    change = floor(apple_bar.value)
+                                newlog = f'You harvested apples from the {ing.name} and got {change} Apples'
+                                if ing.type[0] == "s":
+                                    dif = 1
+                                elif ing.type[0] == "a":
+                                    dif = 5
+                                elif ing.type[0] == "b":
+                                    dif = 25
+                                else:
+                                    dif = 0
+                                ra = random.random()
+                                if ra > lvl.value/dif:
+                                    hp = next(i for i in mover.bars if i.name == "Health")
+                                    dmg = random.randint(dif, dif * 5)
+                                    hp.value -= dmg
+                                    newlog += f', but after that you fell down and lost {dmg} hp'
+                                else:
+                                    newlog += ", and were lucky (or experienced) enough to climb down graciously"
+                            elif ing.type[-5:] == "chest":
+                                change = floor(apple_bar.value)
+                                newlog = f'You took {change} apples from the {ing.name}'
+                            else:
+                                change = 0
+                        elif use_type == "put":
+                            change = -player_apples.amount
+                            newlog = f'You put {-change} Apples into the {ing.name}'
                         else:
                             change = 0
-                    elif use_type == "put":
-                        change = -player_apples.amount
-                        newlog = f'You interacted with "{ing.name}" and put {-change} Apples into it'
-                    else:
-                        change = 0
-                        newlog = f'You interacted with "{ing.name}" and somehow broke it. Good job. Notify me pls'
-                    player_apples.amount += change
-                    apple_bar.value -= change
-                    apple_bar.value = round(apple_bar.value, 2)
-                elif move[:18] == "move to spall no. ":
-                    place = move[18:]
-                    newwhere = Spall.query.filter_by(id=place).first()
-                    now = mover.position[0]
-                    if newwhere in now.bridges:
-                        now.guests.remove(mover)
-                        newwhere.guests.append(mover)
-                        if not newwhere.awake:
-                            newwhere.wake()
-                        newlog = f'You moved from "{now.name}" to "{newwhere.name}"'
-                    else:
-                        newlog = f"Hey! {now.name} is not connected to {newwhere.name}! Are you trying to cheat?"
-                elif move[:16] == "rename spall to ":
-                    newname = move[16:]
-                    now = mover.position[0]
-                    if not now.nameorig:
-                        if 20 > len(newname) > 3:
-                            now.name = newname
-                            now.nameorig = True
-                            db.session.commit()
-                            newlog = f'Spall no. {now.id} is now named "{now.name}"!'
+                            newlog = f'You interacted with "{ing.name}" and somehow broke it. Good job. Notify me pls'
+                        player_apples.amount += change
+                        apple_bar.value -= change
+                        apple_bar.value = round(apple_bar.value, 2)
+                    elif move[:18] == "move to spall no. ":
+                        place = move[18:]
+                        newwhere = Spall.query.filter_by(id=place).first()
+                        now = mover.position[0]
+                        if newwhere in now.bridges:
+                            now.guests.remove(mover)
+                            newwhere.guests.append(mover)
+                            if not newwhere.awake:
+                                newwhere.wake()
+                            newlog = f'You moved from "{now.name}" to "{newwhere.name}"'
                         else:
-                            newlog = f'Spall no. {now.id} didnt get renamed"!'
+                            newlog = f"Hey! {now.name} is not connected to {newwhere.name}! Are you trying to cheat?"
+                    elif move[:16] == "rename spall to ":
+                        newname = move[16:]
+                        now = mover.position[0]
+                        if not now.nameorig:
+                            if 20 > len(newname) > 3:
+                                now.name = newname
+                                now.nameorig = True
+                                db.session.commit()
+                                newlog = f'Spall no. {now.id} is now named "{now.name}"!'
+                            else:
+                                newlog = f'Spall no. {now.id} didnt get renamed"!'
 
+                        else:
+                            newlog = f"Hey! {now.name} is a original spall name! Are you trying to cheat?"
+                    elif move[:6] == "shout ":
+                        text = move[6:]
+                        newlog = 'You shouted "%s" to everyone on this spall' % text
+                        youhear = f'You hear {mover.name} shout: "%s"' % text
+                        print(youhear)
+                        youhear = "[" + time.ctime() + "] " + youhear
+                        for fellow in mover.position[0].guests:
+                            if fellow is not mover:
+                                fellog = eval(fellow.logs)
+                                fellog.append(youhear)
+                                fellow.logs = str(fellog)
                     else:
-                        newlog = f"Hey! {now.name} is a original spall name! Are you trying to cheat?"
-                elif move[:6] == "shout ":
-                    text = move[6:]
-                    newlog = 'You shouted "%s" to everyone on this spall' % text
-                    youhear = f'You hear {mover.name} shout: "%s"' % text
-                    print(youhear)
-                    youhear = "[" + time.ctime() + "] " + youhear
-                    for fellow in mover.position[0].guests:
-                        if fellow is not mover:
-                            fellog = eval(fellow.logs)
-                            fellog.append(youhear)
-                            fellow.logs = str(fellog)
-                            db.session.commit()
-                else:
-                    newlog = "error: Unknown move. Your move is " + move
+                        newlog = "error: Unknown move. Your move is " + move
+            if move != "":
                 newlog = "[" + time.ctime() + "] " + newlog
 
                 loggs = eval(mover.logs)
@@ -412,7 +426,7 @@ def perform_task():
                     loggs = loggs[-50:]
                 mover.logs = str(loggs)
                 mover.move = ""
-            mover.evalxp()
+                mover.evalxp()
             db.session.commit()
 
 
@@ -608,6 +622,10 @@ if __name__ == "__main__":
             db.session.commit()
             zero = Spall.query.filter_by().first()
             zero.wake()
+            db.session.commit()
+            two_to_8 = Spall.query.filter_by().all()
+            for one in two_to_8:
+                one.wake()
             db.session.commit()
     thread.start()
     app.run(debug=True, use_reloader=False, host="0.0.0.0")
