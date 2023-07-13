@@ -13,7 +13,7 @@ minute_length = 10
 
 app = Flask(__name__)
 app.secret_key = "genius"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://default:5oxXM1tNTHOy@ep-steep-grass-490157.eu-central-1.postgres.vercel-storage.com:5432/verceldb'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://u130332_3b2pDH9NmL:L=rQtFPZp!eEzxw3kN8DRH15@mysql4.joinserver.xyz:3306/s130332_Conquester_data'
 print(app.config['SQLALCHEMY_DATABASE_URI'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.permanent_session_lifetime = timedelta(hours=1)
