@@ -9,11 +9,11 @@ from datetime import timedelta
 import threading
 import time
 
-minute_length = 20
+minute_length = 10
 
 app = Flask(__name__)
 app.secret_key = "genius"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite3'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 print(app.config['SQLALCHEMY_DATABASE_URI'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.permanent_session_lifetime = timedelta(hours=1)
@@ -289,14 +289,15 @@ def perform_task():
         for mover in movers:
             bars = mover.bars
             hp = next(i for i in bars if i.name == "Health")
-            newlog=""
+            newlog = ""
             if hp.value < 0:
                 newlog = "Owie! You died. That took away the experience you need to get to your curent level. Also you lost all your items."
                 for i in mover.inventory:
                     i.amount = 0
                 exp = next(i for i in bars if i.name == "Experience")
-                exp.value -= exp.maxx/2
+                exp.value -= exp.maxx / 2
                 hp.value += hp.maxx
+                move = "died"
             else:
                 if hp.value < hp.maxx:
                     hp.value += 1
@@ -357,7 +358,7 @@ def perform_task():
                                 else:
                                     dif = 0
                                 ra = random.random()
-                                if ra > lvl.value/dif:
+                                if ra > lvl.value / dif:
                                     hp = next(i for i in mover.bars if i.name == "Health")
                                     dmg = random.randint(dif, dif * 5)
                                     hp.value -= dmg
